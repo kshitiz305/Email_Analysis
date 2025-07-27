@@ -1,0 +1,166 @@
+{
+  "name": "LinkedIn Daily Post Automation",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "dayOfWeek",
+              "expression": "every"
+            }
+          ]
+        }
+      },
+      "id": "cron-trigger",
+      "name": "Daily Trigger",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// LinkedIn post content generator\nconst postTemplates = [\n  \"🚀 Excited to share that we're building an automation service for LinkedIn! Our agency is helping businesses streamline their social media presence and boost engagement. #LinkedInAutomation #DigitalMarketing #AgencyLife\",\n  \n  \"💼 At our agency, we're passionate about innovation. Currently developing a LinkedIn automation service that will revolutionize how businesses connect with their audience. Stay tuned! #Innovation #LinkedIn #BusinessGrowth\",\n  \n  \"🎯 Building something special at our agency - a LinkedIn automation service that will help businesses scale their social media presence efficiently. The future of digital marketing is here! #Automation #LinkedInMarketing #AgencyServices\",\n  \n  \"🔥 Our team is working on a game-changing LinkedIn automation service. Imagine posting consistently, engaging with your audience, and growing your network - all automated! #LinkedInGrowth #Automation #DigitalAgency\",\n  \n  \"📈 The future of LinkedIn marketing is automation! Our agency is developing a service that will help businesses maintain consistent, engaging content without the manual effort. #LinkedInAutomation #MarketingAgency #BusinessGrowth\",\n  \n  \"💡 Innovation alert! We're building a LinkedIn automation service at our agency. This will be a game-changer for businesses looking to scale their social media presence. #Innovation #LinkedIn #AgencyLife\",\n  \n  \"🚀 Day [DAY] of building our LinkedIn automation service! Our agency is committed to helping businesses thrive in the digital age. #LinkedInAutomation #AgencyServices #DigitalMarketing\",\n  \n  \"🎯 Consistency is key in social media! That's why our agency is developing a LinkedIn automation service. Stay tuned for updates on this exciting project! #Consistency #LinkedIn #AgencyInnovation\"\n];\n\n// Get current day for dynamic content\nconst currentDate = new Date();\nconst dayOfYear = Math.floor((currentDate - new Date(currentDate.getFullYear(), 0, 0)) / (1000 * 60 * 60 * 24));\n\n// Select a random template and customize it\nconst randomIndex = Math.floor(Math.random() * postTemplates.length);\nlet selectedTemplate = postTemplates[randomIndex];\n\n// Replace [DAY] placeholder with actual day\nselectedTemplate = selectedTemplate.replace('[DAY]', dayOfYear);\n\n// Add some variety with hashtags\nconst additionalHashtags = [\n  '#SocialMediaMarketing',\n  '#BusinessAutomation', \n  '#DigitalTransformation',\n  '#GrowthHacking',\n  '#ContentMarketing',\n  '#B2BMarketing',\n  '#StartupLife',\n  '#TechInnovation'\n];\n\n// Randomly add 2-3 additional hashtags\nconst numAdditionalHashtags = Math.floor(Math.random() * 3) + 2;\nconst shuffledHashtags = additionalHashtags.sort(() => 0.5 - Math.random());\nconst selectedHashtags = shuffledHashtags.slice(0, numAdditionalHashtags);\n\nconst finalPost = selectedTemplate + ' ' + selectedHashtags.join(' ');\n\nreturn {\n  json: {\n    postContent: finalPost,\n    postLength: finalPost.length,\n    timestamp: new Date().toISOString(),\n    templateUsed: randomIndex\n  }\n};"
+      },
+      "id": "content-generator",
+      "name": "Generate Post Content",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "post-length-check",
+              "leftValue": "={{ $json.postLength }}",
+              "rightValue": 1300,
+              "operator": {
+                "type": "number",
+                "operation": "smaller"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "content-validator",
+      "name": "Validate Post Length",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "resource": "post",
+        "operation": "create",
+        "text": "={{ $json.postContent }}",
+        "additionalFields": {
+          "visibility": "public",
+          "lifecycleState": "PUBLISHED"
+        }
+      },
+      "id": "linkedin-post",
+      "name": "Post to LinkedIn",
+      "type": "n8n-nodes-base.linkedIn",
+      "typeVersion": 1,
+      "position": [900, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Log successful post\nconst postData = $input.first().json;\n\nconsole.log('✅ LinkedIn post created successfully!');\nconsole.log('📝 Post content:', postData.postContent);\nconsole.log('📊 Post length:', postData.postLength, 'characters');\nconsole.log('🕒 Posted at:', new Date().toISOString());\n\nreturn {\n  json: {\n    status: 'success',\n    message: 'LinkedIn post created successfully',\n    postId: postData.id,\n    content: postData.postContent,\n    timestamp: new Date().toISOString()\n  }\n};"
+      },
+      "id": "success-logger",
+      "name": "Log Success",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Log error for invalid content\nconsole.log('❌ Post content too long or invalid');\nconsole.log('📝 Content length:', $input.first().json.postLength, 'characters');\nconsole.log('📝 Content:', $input.first().json.postContent);\n\nreturn {\n  json: {\n    status: 'error',\n    message: 'Post content exceeds LinkedIn character limit',\n    postLength: $input.first().json.postLength,\n    timestamp: new Date().toISOString()\n  }\n};"
+      },
+      "id": "error-logger",
+      "name": "Log Error",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 400]
+    }
+  ],
+  "connections": {
+    "Daily Trigger": {
+      "main": [
+        [
+          {
+            "node": "Generate Post Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Post Content": {
+      "main": [
+        [
+          {
+            "node": "Validate Post Length",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Post Length": {
+      "main": [
+        [
+          {
+            "node": "Post to LinkedIn",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Post to LinkedIn": {
+      "main": [
+        [
+          {
+            "node": "Log Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:00:00.000Z",
+      "id": "linkedin-automation",
+      "name": "LinkedIn Automation"
+    }
+  ],
+  "triggerCount": 1,
+  "updatedAt": "2024-01-01T00:00:00.000Z",
+  "versionId": "1"
+}
